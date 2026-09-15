@@ -7,7 +7,10 @@ authors = [
     { name = "katakada"}
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "numpy>=2.2.6",
+    "pydantic>=2.13.5",
+]
 
 [project.scripts]
 call-me-maybe = "call_me_maybe:main"
