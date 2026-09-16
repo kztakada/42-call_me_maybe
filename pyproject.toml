@@ -37,3 +37,11 @@ members = [
 
 [tool.uv.sources]
 llm-sdk = { workspace = true }
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+files = ["src"]
