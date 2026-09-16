@@ -1,4 +1,4 @@
-.PHONY: install run debug clean lint lint-strict
+.PHONY: install run debug clean lint lint-strict test test-full
 
 # 依存関係のインストール（レビュアーが実行するコマンド）
 install:
@@ -21,11 +21,16 @@ clean:
 
 # lint チェック
 lint:
-	uv run flake8 src
-	uv run mypy src --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	uv run flake8 src tests
+	uv run mypy src tests --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	uv run flake8 src
-	uv run mypy src --strict --ignore-missing-imports
-	uv run pydoclint src
-	
+	uv run flake8 src tests
+	uv run mypy src tests --strict --ignore-missing-imports
+	uv run pydoclint src tests
+
+test:
+	uv run pytest -v --maxfail=1 --disable-warnings
+
+test-full:
+	uv run pytest -v
