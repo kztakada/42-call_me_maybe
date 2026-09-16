@@ -24,6 +24,7 @@ build-backend = "uv_build"
 dev = [
     "flake8>=7.3.0",
     "mypy>=2.3.1",
+    "pydoclint>=0.9.1",
     "pytest>=9.1.1",
 ]
 
@@ -45,3 +46,10 @@ ignore_missing_imports = true
 disallow_untyped_defs = true
 check_untyped_defs = true
 files = ["src"]
+
+[tool.pydoclint]
+style = "google"
+arg-type-hints-in-docstring = false
+return-type-hint-in-docstring = false
+check-arg-order = true
+skip-checking-short-docstrings = true
