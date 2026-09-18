@@ -12,6 +12,8 @@ from src.config import (
     DEFAULT_OUTPUT_PATH,
 )
 from src.utils import exit_with_error
+from src.core import (FunctionDefinition, InputPrompt,
+                      load_functions_definition, load_input_prompts)
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,13 +117,17 @@ def main() -> None:
     """メインパイプラインのエントリーポイント"""
 
     args = parse_args()
+    # 1. パスの検証
     validate_paths(args)
 
-    # 受け取った引数の確認出力
-    print("=== Parsed CLI Arguments ===")
-    print(f"Functions Definition Path: {args.functions_definition}")
-    print(f"Input Prompts Path:       {args.input}")
-    print(f"Output Results Path:      {args.output}")
+    # 2. JSON データの読み込みと Pydantic バリデーション
+    functions: list[FunctionDefinition] = load_functions_definition(
+        args.functions_definition
+    )
+    prompts: list[InputPrompt] = load_input_prompts(args.input)
+
+    print(f"Loaded {len(functions)} function definitions.")
+    print(f"Loaded {len(prompts)} input prompts.")
 
 
 if __name__ == "__main__":
