@@ -1,4 +1,4 @@
-"""__main__.pyのテスト"""
+"""__main__.pyのテストモジュール"""
 
 import argparse
 import sys
@@ -14,7 +14,11 @@ from src.__main__ import parse_args, validate_paths
 
 
 def test_parse_args_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test parse_args returns default paths when no CLI flags are provided."""
+    """CLIフラグが指定されていない場合、parse_argsがデフォルトのパスを返すことをテストする
+
+    Args:
+        monkeypatch: pytestのモンキーパッチ機能を利用してsys.argvをモックするためのフィクスチャ
+    """
     # sys.argv を引数なしの状態にモック
     monkeypatch.setattr(sys, "argv", ["__main__.py"])
 
@@ -26,7 +30,7 @@ def test_parse_args_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_parse_args_custom_values(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test parse_args correctly parses explicit custom arguments."""
+    """parse_argsが明示的なカスタム引数を正しく解析することをテストする"""
     custom_argv = [
         "__main__.py",
         "--functions_definition",
@@ -50,7 +54,7 @@ def test_parse_args_custom_values(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_validate_paths_success(tmp_path: Path) -> None:
-    """Test validate_paths succeeds when input files exist and are valid."""
+    """入力ファイルが存在し、かつ有効である場合、validate_pathsテストは成功する"""
     # 正常なダミーファイルの作成
     fn_file = tmp_path / "functions.json"
     fn_file.write_text('{"name": "test"}', encoding="utf-8")
@@ -72,7 +76,7 @@ def test_validate_paths_success(tmp_path: Path) -> None:
 
 
 def test_validate_paths_file_not_found(tmp_path: Path) -> None:
-    """Test validate_paths fails when input file does not exist."""
+    """入力ファイルが存在しない場合、validate_pathsテストは失敗する."""
     missing_file = tmp_path / "non_existent.json"
     valid_file = tmp_path / "input.json"
     valid_file.write_text('["prompt"]', encoding="utf-8")
@@ -90,7 +94,7 @@ def test_validate_paths_file_not_found(tmp_path: Path) -> None:
 
 
 def test_validate_paths_non_json_extension(tmp_path: Path) -> None:
-    """Test validate_paths fails when file extension is not .json."""
+    """ファイル拡張子が .json でない場合、validate_paths テストが失敗します"""
     invalid_ext_file = tmp_path / "functions.txt"
     invalid_ext_file.write_text("dummy", encoding="utf-8")
 
@@ -109,7 +113,7 @@ def test_validate_paths_non_json_extension(tmp_path: Path) -> None:
 
 
 def test_validate_paths_empty_file(tmp_path: Path) -> None:
-    """Test validate_paths fails when input file is 0 bytes."""
+    """入力ファイルが0バイトの場合、テスト validate_paths が失敗します"""
     empty_file = tmp_path / "functions.json"
     empty_file.touch()  # 0バイトファイル作成
 

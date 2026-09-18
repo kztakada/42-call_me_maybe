@@ -1,4 +1,7 @@
-"""Main entry point for the call-me-maybe function calling tool."""
+"""call_me_maybeのメインモジュール
+
+コマンドライン引数の解析、入力ファイルの検証、メインパイプラインの実行を行います
+"""
 import argparse
 import os
 from pathlib import Path
@@ -12,10 +15,10 @@ from src.utils import exit_with_error
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments.
+    """コマンドライン引数をパースし、未設定値にはデフォルト値を設定します
 
     Returns:
-        argparse.Namespace: Parsed command line arguments.
+        パースされたコマンドライン引数を格納したオブジェクト
     """
     parser = argparse.ArgumentParser(
         description="Function calling tool with constrained decoding."
@@ -45,11 +48,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def validate_paths(args: argparse.Namespace) -> None:
-    """Validate input file existence, permissions, and output path
-    configuration.
+    """パスの有効性を検証します
 
     Args:
-        args: Parsed command line arguments containing file paths.
+        args: パースされたコマンドライン引数を格納したオブジェクト
     """
     functions_path: Path = args.functions_definition
     input_path: Path = args.input
@@ -110,7 +112,8 @@ def validate_paths(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    """Execute main pipeline entry point."""
+    """メインパイプラインのエントリーポイント"""
+
     args = parse_args()
     validate_paths(args)
 

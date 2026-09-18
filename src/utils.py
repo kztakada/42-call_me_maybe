@@ -1,15 +1,18 @@
-"""Utility functions for call me maybe project."""
+"""ユーティリティモジュール
+
+プロジェクト全体で使用するユーティリティ関数を提供します
+"""
 
 import sys
 from typing import NoReturn
 
 
 def exit_with_error(message: str, exit_code: int = 1) -> NoReturn:
-    """Print an error message to stderr and terminate the program.
+    """エラーメッセージを標準エラー出力に表示し、プログラムを終了します
 
     Args:
-        message: Error message to display.
-        exit_code: Process exit code (default: 1).
+        message: 表示するエラーメッセージ
+        exit_code: プログラム終了コード (デフォルト: 1)
     """
     print(f"Error: {message}", file=sys.stderr)
     sys.exit(exit_code)

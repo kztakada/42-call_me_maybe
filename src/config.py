@@ -1,4 +1,7 @@
-"""Configuration constants for call me maybe project."""
+"""設定モジュール
+
+プロジェクト全体で使用する定数およびデフォルトパスを定義します
+"""
 
 from pathlib import Path
 

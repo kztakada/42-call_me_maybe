@@ -1,1 +1,4 @@
-"""Source package for call-me-maybe function calling system."""
+"""call_me_maybeのパッケージ
+
+制約デコーディングを用いた LLM ファンクションコーリングツール
+"""

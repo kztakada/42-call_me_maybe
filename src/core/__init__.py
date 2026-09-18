@@ -1,1 +1,4 @@
-"""Source package for call-me-maybe function calling system."""
+"""コア機能パッケージ
+
+データパース、コンテキスト生成、制約デコーディング等の核となるロジックを提供します
+"""

@@ -1,1 +1,4 @@
-"""Source package for call-me-maybe function calling system."""
+"""ボーナスパッケージ
+
+ボーナス機能を提供するパッケージです
+"""
