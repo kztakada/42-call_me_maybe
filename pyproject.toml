@@ -45,11 +45,11 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 check_untyped_defs = true
-files = ["src"]
+files = ["src", "tests"]
 
 [tool.pydoclint]
 style = "google"
 arg-type-hints-in-docstring = false
-return-type-hint-in-docstring = false
+check-return-types = false
 check-arg-order = true
 skip-checking-short-docstrings = true
