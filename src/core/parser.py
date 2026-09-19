@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, JsonValue
 
 from src.utils import exit_with_error
 
@@ -56,6 +56,15 @@ class InputPrompt(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+
+class FunctionCallOutput(BaseModel):
+    """LM が生成した関数呼び出し結果の型定義モデル"""
+
+    name: str
+    parameters: dict[str, JsonValue]
+
+    model_config = ConfigDict(extra="ignore")
+
 # =====================================================================
 # 共通ジェネリクス JSON ロード＆バリデーション関数
 # =====================================================================
@@ -93,7 +102,7 @@ def _load_json_array(
                     f"Each {resource_name} item must be a JSON object: "
                     f"{file_path}"
                 )
-            results.append(model_cls(**item))
+            results.append(model_cls.model_validate(item))
 
         return results
 
@@ -150,12 +159,50 @@ def load_input_prompts(file_path: Path) -> list[InputPrompt]:
         resource_name="Input prompts",
     )
 
+# =====================================================================
+# JSON文字列をパースしてモデル変換する関数
+# =====================================================================
+
+
+def parse_json_to_output(generated_text: str) -> FunctionCallOutput:
+    """生成された JSON 文字列をパースし、FunctionCallOutput モデルに変換します
+
+    Args:
+        generated_text: LLM が生成した JSON 文字列
+
+    Returns:
+        関数名および引数データを持つ FunctionCallOutput モデル
+
+    Raises:
+        ValueError: JSON パースまたは Pydantic バリデーションに失敗した場合
+    """
+    cleaned_text = generated_text.strip()
+    # 末尾に ChatML 等の特殊終了トークンが付いている場合は除去
+    special_tokens = ("<|im_end|>", "<|endoftext|>")
+    for token in special_tokens:
+        if cleaned_text.endswith(token):
+            cleaned_text = cleaned_text[: -len(token)].strip()
+
+    try:
+        raw_dict = json.loads(cleaned_text)
+        return FunctionCallOutput.model_validate(raw_dict)
+    except (json.JSONDecodeError, ValidationError) as e:
+        raise ValueError(
+            f"Failed to parse generated text to FunctionCallOutput: {e}"
+        ) from e
+    except Exception as e:
+        raise ValueError(
+            f"An unexpected error occurred while parsing generated text: {e}"
+        ) from e
+
 
 __all__ = [
     "FunctionDefinition",
     "InputPrompt",
     "ParameterProperty",
     "ReturnProperty",
+    "FunctionCallOutput",
     "load_functions_definition",
     "load_input_prompts",
+    "parse_json_to_output",
 ]
