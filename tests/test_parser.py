@@ -5,7 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from src.core.parser import load_functions_definition, load_input_prompts
+from src.core.parser import (load_functions_definition, load_input_prompts,
+                             FunctionCallOutput, parse_json_to_output)
 
 # =====================================================================
 # 1. load_functions_definition のテスト
@@ -199,3 +200,124 @@ def test_load_input_prompts_schema_validation_error(tmp_path: Path) -> None:
     with pytest.raises(SystemExit) as exc_info:
         load_input_prompts(file_path)
     assert exc_info.value.code == 1
+
+
+# =====================================================================
+# 3. parse_json_to_output のテスト
+# =====================================================================
+
+
+def test_parse_json_to_output_success() -> None:
+    """有効なJSON文字列をFunctionCallOutputに変換できることをテストする"""
+    json_str = '{"name": "fn_add", "parameters": {"a": 1, "b": 2}}'
+
+    result = parse_json_to_output(json_str)
+
+    assert isinstance(result, FunctionCallOutput)
+    assert result.name == "fn_add"
+    assert result.parameters == {"a": 1, "b": 2}
+
+
+def test_parse_json_to_output_with_whitespace() -> None:
+    """前後に空白が含まれるJSONを正常に解析できることをテストする"""
+    json_str = '  \n {"name": "fn_get", "parameters": {}} \n  '
+
+    result = parse_json_to_output(json_str)
+
+    assert result.name == "fn_get"
+    assert result.parameters == {}
+
+
+def test_parse_json_to_output_complex_parameters() -> None:
+    """さまざまな型のパラメータを含むJSONを解析できることをテストする"""
+    json_str = (
+        '{"name": "fn_search", "parameters": {"query": "test", '
+        '"count": 10, "filter": true, "tags": ["a", "b"]}}'
+    )
+
+    result = parse_json_to_output(json_str)
+
+    assert result.name == "fn_search"
+    assert result.parameters["query"] == "test"
+    assert result.parameters["count"] == 10
+    assert result.parameters["filter"] is True
+    assert result.parameters["tags"] == ["a", "b"]
+
+
+def test_parse_json_to_output_invalid_json() -> None:
+    """不正なJSON文字列の解析時にValueErrorが発生することをテストする"""
+    invalid_json = '{"name": "fn_add", "parameters":'
+
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output(invalid_json)
+
+
+def test_parse_json_to_output_empty_string() -> None:
+    """空文字列や空白のみの文字列でValueErrorが発生することをテストする"""
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output("")
+
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output("   \n\t  ")
+
+
+def test_parse_json_to_output_missing_name_field() -> None:
+    """必須の'name'フィールドが欠けている場合にValueErrorが発生することをテストする"""
+    json_missing_name = '{"parameters": {"a": 1}}'
+
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output(json_missing_name)
+
+
+def test_parse_json_to_output_missing_parameters_field() -> None:
+    """'parameters'フィールドが欠けている場合にValueErrorが発生することをテストする"""
+    json_missing_params = '{"name": "fn_add"}'
+
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output(json_missing_params)
+
+
+def test_parse_json_to_output_invalid_type_fields() -> None:
+    """型が不適切なフィールドを含むJSONでValueErrorが発生することをテストする"""
+    # name フィールドが文字列ではなく数値の場合
+    json_invalid_name = '{"name": 123, "parameters": {}}'
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output(json_invalid_name)
+
+    # parameters フィールドが辞書ではなく配列の場合
+    json_invalid_params = '{"name": "fn_add", "parameters":}'
+    with pytest.raises(ValueError, match="Failed to parse generated text"):
+        parse_json_to_output(json_invalid_params)
+
+
+def test_parse_json_to_output_with_im_end_token() -> None:
+    """末尾に <|im_end|> ChatML トークンを含む JSON のパースをテストする"""
+    # 1. 直後に <|im_end|> が付いているケース
+    json_with_im_end = (
+        '{"name": "fn_add_numbers", "parameters": {"a": 5, "b": 10}}<|im_end|>'
+    )
+
+    result1 = parse_json_to_output(json_with_im_end)
+    assert result1.name == "fn_add_numbers"
+    assert result1.parameters == {"a": 5, "b": 10}
+
+    # 2. 空白・改行の後に <|im_end|> が付いているケース
+    json_with_spaced_im_end = (
+        '{"name": "fn_get_weather", "parameters": {"city": "Tokyo"}}\n'
+        '<|im_end|>\n'
+    )
+
+    result2 = parse_json_to_output(json_with_spaced_im_end)
+    assert result2.name == "fn_get_weather"
+    assert result2.parameters == {"city": "Tokyo"}
+
+
+def test_parse_json_to_output_with_endoftext_token() -> None:
+    """末尾に <|endoftext|> トークンを含む JSON のパースをテストする"""
+    json_with_endoftext = (
+        '{"name": "fn_search", "parameters": {"q": "python"}}<|endoftext|>'
+    )
+
+    result = parse_json_to_output(json_with_endoftext)
+    assert result.name == "fn_search"
+    assert result.parameters == {"q": "python"}
