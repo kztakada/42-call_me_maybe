@@ -14,6 +14,7 @@ from src.config import (
 from src.utils import exit_with_error
 from src.core import (FunctionDefinition, InputPrompt,
                       load_functions_definition, load_input_prompts)
+from src.core.prompt import PromptBuilder
 
 
 def parse_args() -> argparse.Namespace:
@@ -128,6 +129,11 @@ def main() -> None:
 
     print(f"Loaded {len(functions)} function definitions.")
     print(f"Loaded {len(prompts)} input prompts.")
+
+    builder = PromptBuilder(functions=functions, format_type="chatml")
+    prompt = builder.build_prompt(user_prompt=prompts[0].prompt)
+    print("Constructed prompt:")
+    print(prompt)
 
 
 if __name__ == "__main__":
