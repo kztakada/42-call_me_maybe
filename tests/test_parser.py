@@ -214,6 +214,7 @@ def test_parse_json_to_output_success() -> None:
     result = parse_json_to_output(json_str)
 
     assert isinstance(result, FunctionCallOutput)
+    assert result.prompt == ""
     assert result.name == "fn_add"
     assert result.parameters == {"a": 1, "b": 2}
 
