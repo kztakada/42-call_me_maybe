@@ -1,48 +1,17 @@
-"""テスト用の共通フィクスチャモジュール
+"""テストで共通利用する pytest fixture"""
 
-pytestで全テストファイルから共通して利用するフィクスチャ（テスト用データや初期化処理）を定義する
-tests/内では明示的にimportしなくても利用可能になる
-"""
+from pathlib import Path
 
-from typing import Any, Dict, List
 import pytest
 
 
 @pytest.fixture
-def sample_function_definition() -> Dict[str, Any]:
-    """テスト用の単一の関数定義データを返します
+def valid_input_files(tmp_path: Path) -> tuple[Path, Path]:
+    """有効な関数定義ファイルと入力プロンプトファイルを作成する"""
+    functions_file = tmp_path / "functions.json"
+    functions_file.write_text('{"name": "test"}', encoding="utf-8")
 
-    Returns:
-        ダミーの関数定義データ
-    """
-    return {
-        "name": "get_current_weather",
-        "description": "Get the current weather for a given location.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "location": {
-                    "type": "string",
-                    "description": "The city and state, e.g. Seattle, WA",
-                },
-                "unit": {
-                    "type": "string",
-                    "enum": ["celsius", "fahrenheit"],
-                },
-            },
-            "required": ["location"],
-        },
-    }
+    input_file = tmp_path / "input.json"
+    input_file.write_text('["prompt"]', encoding="utf-8")
 
-
-@pytest.fixture
-def sample_test_prompts() -> List[str]:
-    """テスト用のプロンプト文字列リストを返します
-
-    Returns:
-        テスト用のプロンプトのリスト
-    """
-    return [
-        "What's the weather like in Tokyo?",
-        "Calculate the 10th Fibonacci number.",
-    ]
+    return functions_file, input_file

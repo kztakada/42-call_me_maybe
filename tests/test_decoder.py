@@ -59,6 +59,8 @@ def dummy_vocab_file(tmp_path: Path) -> Path:
         "}}": 14,
         "invalid_token": 15,
         "true": 16,
+        "false": 17,
+        "hello": 18,
     }
     vocab_file = tmp_path / "vocab.json"
     vocab_file.write_text(json.dumps(vocab_data), encoding="utf-8")
@@ -90,6 +92,8 @@ def mock_model(dummy_vocab_file: Path) -> MagicMock:
         14: "}}",
         15: "invalid_token",
         16: "true",
+        17: "false",
+        18: "hello",
     }
     model.decode.side_effect = lambda ids: "".join(
         id_map.get(idx, "") for idx in ids
@@ -146,6 +150,26 @@ def test_decoder_full_generation_flow(
     # 最終トークン生成後に FINISHED ステートになっていること
     assert decoder.is_finished()
 
+
+def test_decoder_string_parameter_generation(
+    decoder: BaseConstrainedDecoder,
+) -> None:
+    """文字列引数を含む関数呼び出しを最後まで生成できることをテストする"""
+    token_sequence = [
+        0, 1, 2, 3, 5, 6,
+        1, 2, 1, 8, 1, 18, 1, 13, 13,
+    ]
+
+    for token_id in token_sequence:
+        raw_logits = [0.0] * 20
+        raw_logits[token_id] = 10.0
+        assert decoder.step(raw_logits) == token_id
+
+    assert decoder.is_finished()
+    assert decoder._buffer == (
+        '{"name": "fn_greet", "parameters": {"name": "hello"}}'
+    )
+
 # =====================================================================
 # 2. Logit マスキング機能テスト
 # =====================================================================
@@ -195,6 +219,62 @@ def test_apply_mask_number_parameter_type(
     assert masked[9] == 1.0
     assert masked[15] == -np.inf
 
+
+def test_apply_mask_parameter_key_is_schema_constrained(
+    decoder: BaseConstrainedDecoder, mock_functions: list[FunctionDefinition]
+) -> None:
+    """PARAMS_KEY 状態では現在の引数キーの次のトークンだけを許可する"""
+    decoder._selected_function = mock_functions[0]
+    decoder._state = DecoderState.PARAMS_KEY
+    decoder._parameter_index = 0
+
+    first_key_token = decoder._apply_mask([1.0] * 20)
+    assert first_key_token[7] == 1.0
+    assert first_key_token[15] == -np.inf
+
+    decoder._phase_text = '"a"'
+    colon_token = decoder._apply_mask([1.0] * 20)
+    assert colon_token[8] == 1.0
+    assert colon_token[7] == -np.inf
+
+
+def test_apply_mask_boolean_parameter_type(
+    decoder: BaseConstrainedDecoder, mock_functions: list[FunctionDefinition]
+) -> None:
+    """boolean 型では true/false と適切な区切りだけを許可する"""
+    function = mock_functions[0].model_copy(deep=True)
+    assert function.parameters is not None
+    function.parameters["a"] = ParameterProperty(type="boolean")
+    decoder._selected_function = function
+    decoder._state = DecoderState.PARAM_VALUE
+    decoder._parameter_index = 0
+
+    masked = decoder._apply_mask([1.0] * 20)
+    assert masked[16] == 1.0
+    assert masked[17] == 1.0
+    assert masked[9] == -np.inf
+
+
+def test_apply_mask_string_parameter_requires_json_string(
+    decoder: BaseConstrainedDecoder, mock_functions: list[FunctionDefinition]
+) -> None:
+    """string 型では引用符から始まり、文字列途中に区切りを許可しない"""
+    function = mock_functions[0].model_copy(deep=True)
+    assert function.parameters is not None
+    function.parameters["a"] = ParameterProperty(type="string")
+    decoder._selected_function = function
+    decoder._state = DecoderState.PARAM_VALUE
+    decoder._parameter_index = 0
+
+    start = decoder._apply_mask([1.0] * 20)
+    assert start[1] == 1.0
+    assert start[18] == -np.inf
+
+    decoder._value_text = '"'
+    content = decoder._apply_mask([1.0] * 20)
+    assert content[18] == 1.0
+    assert content[10] == -np.inf
+
 # =====================================================================
 # 3. 異常系・エッジケーステスト（異常系とフォールバック）
 # =====================================================================
@@ -211,8 +291,42 @@ def test_apply_mask_fallback_when_no_valid_tokens(
     raw_logits = [2.0] * 20
     # クラッシュ（ValueError）せずにフォールバック値が返る
     masked = decoder._apply_mask(raw_logits)
-    assert isinstance(masked, list)
-    assert len(masked) == 20
+    assert masked == raw_logits
+
+
+def test_apply_mask_end_json_only_accepts_closing_brace(
+    decoder: BaseConstrainedDecoder,
+) -> None:
+    """END_JSON 状態では閉じ波括弧だけを候補にする"""
+    decoder._state = DecoderState.END_JSON
+
+    masked = decoder._apply_mask([1.0] * 20)
+
+    assert masked[13] == 1.0
+    assert masked[14] == -np.inf
+    assert masked[15] == -np.inf
+
+
+def test_empty_parameter_function_can_finish(
+    mock_model: MagicMock,
+) -> None:
+    """引数のない関数は parameters の空オブジェクトを閉じて完了できる"""
+    function = FunctionDefinition(
+        name="fn_add_numbers",
+        description="No parameters.",
+        parameters={},
+    )
+    mock_model.encode.side_effect = lambda text: np.array(
+        [[0, 1, 2, 3, 4, 6]], dtype=np.int64
+    )
+    decoder = BaseConstrainedDecoder(functions=[function], model=mock_model)
+
+    for token_id in [0, 1, 2, 3, 4, 6, 13, 13]:
+        raw_logits = [0.0] * 20
+        raw_logits[token_id] = 10.0
+        assert decoder.step(raw_logits) == token_id
+
+    assert decoder.is_finished()
 
 
 def test_decoder_step_with_empty_logits_raises_error(

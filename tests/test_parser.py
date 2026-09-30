@@ -1,4 +1,4 @@
-"""parser.py のテストモジュール"""
+"""src/core/parser.py のテストモジュール"""
 
 from pathlib import Path
 from unittest.mock import patch
@@ -63,6 +63,54 @@ def test_load_functions_definition_minimal_success(tmp_path: Path) -> None:
     assert fn.name == "fn_get_time"
     assert fn.parameters == {}
     assert fn.returns is None
+
+
+def test_load_functions_definition_empty_array_success(tmp_path: Path) -> None:
+    """空の関数定義配列を正常に読み込めることをテストする"""
+    file_path = tmp_path / "empty_functions.json"
+    file_path.write_text("[]", encoding="utf-8")
+
+    assert load_functions_definition(file_path) == []
+
+
+def test_load_functions_definition_ignores_unknown_fields(
+    tmp_path: Path,
+) -> None:
+    """関数定義の未知のフィールドが無視されることをテストする"""
+    json_content = """[
+        {
+            "name": "fn_known",
+            "description": "Known fields only.",
+            "parameters": {},
+            "extra": "ignored"
+        }
+    ]"""
+    file_path = tmp_path / "functions_extra.json"
+    file_path.write_text(json_content, encoding="utf-8")
+
+    result = load_functions_definition(file_path)
+
+    assert result[0].name == "fn_known"
+    assert "extra" not in result[0].model_dump()
+
+
+def test_load_functions_definition_nested_schema_validation_error(
+    tmp_path: Path,
+) -> None:
+    """パラメータ定義の必須フィールド欠落を検出することをテストする"""
+    json_content = """[
+        {
+            "name": "fn_invalid",
+            "description": "Invalid parameter schema.",
+            "parameters": {"value": {"description": "Missing type"}}
+        }
+    ]"""
+    file_path = tmp_path / "nested_schema_error.json"
+    file_path.write_text(json_content, encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        load_functions_definition(file_path)
+    assert exc_info.value.code == 1
 
 
 def test_load_functions_definition_file_not_found(tmp_path: Path) -> None:
@@ -160,6 +208,28 @@ def test_load_input_prompts_success(tmp_path: Path) -> None:
     assert len(prompts) == 2
     assert prompts[0].prompt == "What is the capital of France?"
     assert prompts[1].prompt == "Calculate 15 * 8."
+
+
+def test_load_input_prompts_empty_array_success(tmp_path: Path) -> None:
+    """空の入力プロンプト配列を正常に読み込めることをテストする"""
+    file_path = tmp_path / "empty_prompts.json"
+    file_path.write_text("[]", encoding="utf-8")
+
+    assert load_input_prompts(file_path) == []
+
+
+def test_load_input_prompts_ignores_unknown_fields(tmp_path: Path) -> None:
+    """入力プロンプトの未知のフィールドが無視されることをテストする"""
+    file_path = tmp_path / "prompts_extra.json"
+    file_path.write_text(
+        '[{"prompt": "known", "metadata": {"source": "test"}}]',
+        encoding="utf-8",
+    )
+
+    result = load_input_prompts(file_path)
+
+    assert result[0].prompt == "known"
+    assert "metadata" not in result[0].model_dump()
 
 
 def test_load_input_prompts_file_not_found(tmp_path: Path) -> None:
@@ -286,9 +356,28 @@ def test_parse_json_to_output_invalid_type_fields() -> None:
         parse_json_to_output(json_invalid_name)
 
     # parameters フィールドが辞書ではなく配列の場合
-    json_invalid_params = '{"name": "fn_add", "parameters":}'
+    json_invalid_params = '{"name": "fn_add", "parameters": []}'
     with pytest.raises(ValueError, match="Failed to parse generated text"):
         parse_json_to_output(json_invalid_params)
+
+
+def test_parse_json_to_output_non_object_root() -> None:
+    """JSON のルートがオブジェクトでない場合にValueErrorが発生することをテストする"""
+    for json_value in ("[]", "null", '"text"', "123"):
+        with pytest.raises(ValueError, match="Failed to parse generated text"):
+            parse_json_to_output(json_value)
+
+
+def test_parse_json_to_output_ignores_unknown_fields() -> None:
+    """未知のフィールドを無視して関数呼び出し結果を生成することをテストする"""
+    json_str = (
+        '{"name": "fn_add", "parameters": {}, "metadata": "ignored"}'
+    )
+
+    result = parse_json_to_output(json_str)
+
+    assert result.name == "fn_add"
+    assert "metadata" not in result.model_dump()
 
 
 def test_parse_json_to_output_with_im_end_token() -> None:

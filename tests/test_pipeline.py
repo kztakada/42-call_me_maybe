@@ -1,4 +1,4 @@
-"""pipeline.py のテストモジュール"""
+"""src/core/pipeline.py のテストモジュール"""
 
 from typing import cast
 from unittest.mock import MagicMock, Mock, patch

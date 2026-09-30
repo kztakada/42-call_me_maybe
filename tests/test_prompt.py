@@ -1,5 +1,7 @@
 """src/core/prompt.py の PromptBuilder クラスのテスト"""
 
+import json
+
 import pytest
 
 from src.core.parser import (
@@ -35,6 +37,60 @@ def test_prompt_builder_init_success() -> None:
     assert '"name": "fn_add"' in builder.system_prompt
     assert '"description": "Add two numbers."' in builder.system_prompt
     assert '"type": "number"' in builder.system_prompt
+
+
+def test_prompt_builder_serializes_function_definitions_as_valid_json(
+) -> None:
+    """関数定義が有効な JSON として埋め込まれることを確認する
+
+    None の項目はシリアライズ結果から除外される。
+    """
+    functions = [
+        FunctionDefinition(
+            name="fn_optional",
+            description="Uses an optional schema field.",
+            parameters={"value": ParameterProperty(type="string")},
+        )
+    ]
+
+    builder = PromptBuilder(functions)
+    json_start = builder.system_prompt.index("[\n")
+    json_end = builder.system_prompt.index("\n]\n\n", json_start) + 2
+
+    serialized = json.loads(builder.system_prompt[json_start:json_end])
+
+    assert serialized == [
+        {
+            "name": "fn_optional",
+            "description": "Uses an optional schema field.",
+            "parameters": {"value": {"type": "string"}},
+        }
+    ]
+
+
+def test_prompt_builder_preserves_function_order_and_all_definitions() -> None:
+    """複数の関数定義が入力順と内容を保つことを確認する"""
+    functions = [
+        FunctionDefinition(
+            name="fn_first",
+            description="First function.",
+            parameters={},
+        ),
+        FunctionDefinition(
+            name="fn_second",
+            description="Second function.",
+            parameters={},
+        ),
+    ]
+
+    builder = PromptBuilder(functions)
+
+    first_index = builder.system_prompt.index('"name": "fn_first"')
+    second_index = builder.system_prompt.index('"name": "fn_second"')
+
+    assert first_index < second_index
+    assert '"description": "First function."' in builder.system_prompt
+    assert '"description": "Second function."' in builder.system_prompt
 
 
 def test_prompt_builder_empty_functions() -> None:
@@ -87,6 +143,19 @@ def test_prompt_builder_multiple_build_prompt_calls() -> None:
     assert "Calculate 5 * 10" in prompt2
     assert "Calculate 5 * 10" not in prompt1
 
+
+def test_prompt_builder_preserves_multiline_user_input() -> None:
+    """複数行や ChatML 風の文字列をユーザー入力としてそのまま保持することを確認する"""
+    builder = PromptBuilder([])
+    user_prompt = "line one\nline two <|im_end|>"
+
+    full_prompt = builder.build_prompt(user_prompt)
+
+    assert (
+        f"<|im_start|>user\n{user_prompt}<|im_end|>"
+        in full_prompt
+    )
+
 # =====================================================================
 # 2. 異常系・エッジケーステスト (Abnormal & Edge Cases)
 # =====================================================================
@@ -101,6 +170,15 @@ def test_prompt_builder_unsupported_format_init() -> None:
             functions,
             format_type="invalid_format",  # type: ignore[arg-type]
         )
+
+
+def test_prompt_builder_rejects_non_function_definition_items() -> None:
+    """関数定義リストに FunctionDefinition 以外があれば初期化を拒否することを確認する"""
+    with pytest.raises(
+        TypeError,
+        match="Each function definition must be a FunctionDefinition",
+    ):
+        PromptBuilder(["not a function definition"])  # type: ignore[list-item]
 
 
 def test_prompt_builder_unsupported_format_build_prompt() -> None:
