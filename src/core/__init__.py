@@ -15,6 +15,7 @@ from src.core.parser import (
 )
 from src.core.prompt import PromptBuilder, PromptFormat
 from src.core.pipeline import FunctionCallingPipeline
+from src.core.decoder import DecoderState, BaseConstrainedDecoder
 
 __all__ = [
     "FunctionDefinition",
@@ -28,4 +29,6 @@ __all__ = [
     "PromptBuilder",
     "PromptFormat",
     "FunctionCallingPipeline",
+    "DecoderState",
+    "BaseConstrainedDecoder",
 ]

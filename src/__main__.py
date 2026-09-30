@@ -6,6 +6,7 @@ import argparse
 import os
 from pathlib import Path
 
+from llm_sdk import Small_LLM_Model
 from src.config import (
     DEFAULT_FUNCTIONS_DEFINITION_PATH,
     DEFAULT_INPUT_PATH,
@@ -14,7 +15,7 @@ from src.config import (
 from src.utils import exit_with_error
 from src.core import (FunctionDefinition, InputPrompt,
                       load_functions_definition, load_input_prompts)
-from src.core.prompt import PromptBuilder
+from src.core.pipeline import FunctionCallingPipeline
 
 
 def parse_args() -> argparse.Namespace:
@@ -130,10 +131,13 @@ def main() -> None:
     print(f"Loaded {len(functions)} function definitions.")
     print(f"Loaded {len(prompts)} input prompts.")
 
-    builder = PromptBuilder(functions=functions, format_type="chatml")
-    prompt = builder.build_prompt(user_prompt=prompts[0].prompt)
-    print("Constructed prompt:")
-    print(prompt)
+    model = Small_LLM_Model()
+    pipeline = FunctionCallingPipeline(functions=functions, model=model)
+    results = pipeline.run(input_prompts=prompts)
+
+    print("Function call results:")
+    for i, result in enumerate(results):
+        print(f"  {i + 1}. {result}")
 
 
 if __name__ == "__main__":
