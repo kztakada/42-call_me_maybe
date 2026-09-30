@@ -22,6 +22,7 @@ class PromptBuilder:
 
     Raises:
         ValueError: サポートされていない format_type が指定された場合
+        TypeError: 関数定義リストに FunctionDefinition 以外の要素がある場合
     """
 
     def __init__(
@@ -29,6 +30,17 @@ class PromptBuilder:
         functions: list[FunctionDefinition],
         format_type: PromptFormat = "chatml",
     ) -> None:
+        if format_type != "chatml":
+            raise ValueError(f"Unsupported prompt format: {format_type}")
+
+        if functions and any(
+            not isinstance(function, FunctionDefinition)
+            for function in functions
+        ):
+            raise TypeError(
+                "Each function definition must be a FunctionDefinition."
+            )
+
         self.functions = functions
         self.format_type = format_type
         self.system_prompt = self._build_system_prompt()
