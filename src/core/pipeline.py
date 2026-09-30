@@ -44,7 +44,9 @@ class FunctionCallingPipeline:
                 prompt_item.prompt
             )
             output_json = self._generate_single(full_prompt)
-            results.append(output_json)
+            results.append(output_json.model_copy(
+                update={"prompt": prompt_item.prompt}
+            ))
 
         return results
 

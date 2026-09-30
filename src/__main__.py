@@ -5,6 +5,7 @@
 import argparse
 import os
 from pathlib import Path
+import json
 
 from llm_sdk import Small_LLM_Model
 from src.config import (
@@ -135,9 +136,15 @@ def main() -> None:
     pipeline = FunctionCallingPipeline(functions=functions, model=model)
     results = pipeline.run(input_prompts=prompts)
 
-    print("Function call results:")
-    for i, result in enumerate(results):
-        print(f"  {i + 1}. {result}")
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    serializable_results = [
+        result.model_dump(mode="json") for result in results
+    ]
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(serializable_results, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@ class InputPrompt(BaseModel):
 class FunctionCallOutput(BaseModel):
     """LM が生成した関数呼び出し結果の型定義モデル"""
 
+    prompt: str
     name: str
     parameters: dict[str, JsonValue]
 
@@ -185,6 +186,8 @@ def parse_json_to_output(generated_text: str) -> FunctionCallOutput:
 
     try:
         raw_dict = json.loads(cleaned_text)
+        if isinstance(raw_dict, dict):
+            raw_dict.setdefault("prompt", "")
         return FunctionCallOutput.model_validate(raw_dict)
     except (json.JSONDecodeError, ValidationError) as e:
         raise ValueError(
